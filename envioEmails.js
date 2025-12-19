@@ -1,19 +1,39 @@
 function enviarCertificados() {
-  var planilha = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var abas = ss.getSheets().map(s => s.getName());
+
+  var html = HtmlService.createTemplateFromFile("SheetPicker");
+  html.abas = abas;
+
+  var dialog = html.evaluate()
+    .setWidth(420)
+    .setHeight(220);
+
+  SpreadsheetApp.getUi().showModalDialog(dialog, "Selecionar aba para envio");
+}
+
+function enviarCertificadosComAba(nomeAba) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var planilha = ss.getSheetByName(nomeAba);
   var ui = SpreadsheetApp.getUi();
+
+  if (!planilha) {
+    ui.alert("Aba não encontrada: " + nomeAba);
+    return;
+  }
+
   var ultimaLinha = planilha.getLastRow();
 
   // -------- CONFIGURAÇÕES --------
-  var pastaId = "ID da pasta do google drive com os certificados";
+  var pastaId = "1hnNxMMUxbqVOsAF7O6TToT_HubcekmI7";
   var nomeCurso = "Nome do curso";
   var assuntoEmail = "Certificado de Participação - " + nomeCurso;
   var LIMITE_LOTE = 40;
   // -------------------------------
 
-  // Confirmação (preview simples)
   var resposta = ui.alert(
     "Confirmar envio",
-    "Deseja enviar os certificados agora?\nCurso: " + nomeCurso,
+    "Aba selecionada: " + planilha.getName() + "\nCurso: " + nomeCurso + "\n\nDeseja enviar os certificados agora?",
     ui.ButtonSet.YES_NO
   );
 
@@ -22,18 +42,16 @@ function enviarCertificados() {
     return;
   }
 
-  // Corpo do e-mail (HTML seguro)
   var corpoEmailHTML =
     "<p>Olá, <strong>{{NOME}}</strong>!</p>" +
     "<p>É com satisfação que enviamos em anexo o seu <strong>Certificado de Participação</strong> no curso <strong>" + nomeCurso + "</strong>.</p>" +
     "<p>Parabenizamos pelo seu empenho e dedicação durante o curso. Esperamos que os conhecimentos adquiridos possam contribuir para sua formação e abrir novas possibilidades no campo da robótica e da tecnologia.</p>" +
-    "<p>Caso tenha alguma dúvida ou precise de mais informações, estamos a disposição pelo contato: <strong>(00) 00000-0000</strong>.</p>" +
+    "<p>Caso tenha alguma dúvida ou precise de mais informações, estamos à disposição pelo contato: <strong>(00) 00000-0000</strong>.</p>" +
     "<p>Atenciosamente,<br>Equipe ....</p>";
 
   var pasta = DriveApp.getFolderById(pastaId);
   var arquivos = pasta.getFiles();
 
-  // Normalização
   function normalizar(texto) {
     return texto.toString()
       .normalize("NFD")
@@ -43,7 +61,6 @@ function enviarCertificados() {
       .toLowerCase();
   }
 
-  // Mapa de certificados
   var mapaArquivos = {};
   while (arquivos.hasNext()) {
     var arquivo = arquivos.next();
@@ -52,7 +69,6 @@ function enviarCertificados() {
 
   var enviadosNoLote = 0;
 
-  // Loop principal
   for (var i = 2; i <= ultimaLinha; i++) {
     var nome = planilha.getRange(i, 1).getValue();
     var email = planilha.getRange(i, 2).getValue();
@@ -81,9 +97,8 @@ function enviarCertificados() {
 
       enviadosNoLote++;
 
-      // Controle de lote
       if (enviadosNoLote >= LIMITE_LOTE) {
-        Utilities.sleep(30000); // 30 segundos
+        Utilities.sleep(30000); // 30s
         enviadosNoLote = 0;
       }
 
@@ -92,5 +107,5 @@ function enviarCertificados() {
     }
   }
 
-  ui.alert("Envio finalizado com sucesso!");
+  ui.alert("Envio finalizado com sucesso!\nAba usada: " + planilha.getName());
 }
