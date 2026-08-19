@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        color: #202124;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+      }
+
+      select {
+        width: 100%;
+        padding: 9px;
+        box-sizing: border-box;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+      }
+
+      #status {
+        min-height: 20px;
+        margin-top: 14px;
+        font-size: 13px;
+        color: #5f6368;
+      }
+
+      .row {
+        margin-top: 16px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      button {
+        padding: 9px 14px;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        cursor: pointer;
+        background: #ffffff;
+      }
+
+      button.principal {
+        background: #1a73e8;
+        border-color: #1a73e8;
+        color: #ffffff;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+    </style>
+  </head>
+
+  <body>
+    <label for="aba">Escolha a aba:</label>
+
+    <select id="aba">
+      <? for (var i = 0; i < abas.length; i++) { ?>
+        <option value="<?= abas[i] ?>">
+          <?= abas[i] ?>
+        </option>
+      <? } ?>
+    </select>
+
+    <div id="status"></div>
+
+    <div class="row">
+      <button
+        id="botaoCancelar"
+        type="button"
+        onclick="google.script.host.close()"
+      >
+        Cancelar
+      </button>
+
+      <button
+        id="botaoSelecionar"
+        class="principal"
+        type="button"
+        onclick="confirmar()"
+      >
+        Selecionar e enviar
+      </button>
+    </div>
+
+    <script>
+      function confirmar() {
+        const nomeAba =
+          document.getElementById("aba").value;
+
+        if (!nomeAba) {
+          alert("Selecione uma aba.");
+          return;
+        }
+
+        const confirmado = window.confirm(
+          "Aba selecionada: " + nomeAba +
+          "\n\nDeseja iniciar o envio dos convites?"
+        );
+
+        if (!confirmado) {
+          return;
+        }
+
+        const botaoSelecionar =
+          document.getElementById("botaoSelecionar");
+
+        const botaoCancelar =
+          document.getElementById("botaoCancelar");
+
+        const status =
+          document.getElementById("status");
+
+        botaoSelecionar.disabled = true;
+        botaoCancelar.disabled = true;
+        status.textContent =
+          "Enviando convites. Não feche esta janela...";
+
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+            const resumo = [
+              "Envio concluído!",
+              "",
+              "Aba: " + resultado.aba,
+              "Convites enviados: " + resultado.enviados,
+              "Erros: " + resultado.erros,
+              "Linhas ignoradas: " + resultado.ignorados,
+              "Participantes pendentes: " +
+                resultado.pendentes,
+              "Cota restante: " + resultado.quotaRestante
+            ];
+
+            if (resultado.limiteLoteAtingido) {
+              resumo.push(
+                "",
+                "O limite de 40 convites por execução foi atingido.",
+                "Execute novamente para enviar os convites restantes."
+              );
+            }
+
+            if (resultado.quotaAtingida) {
+              resumo.push(
+                "",
+                "A cota diária de envio foi atingida."
+              );
+            }
+
+            alert(resumo.join("\n"));
+            google.script.host.close();
+          })
+          .withFailureHandler(function(erro) {
+            status.textContent =
+              "Não foi possível concluir o envio.";
+
+            botaoSelecionar.disabled = false;
+            botaoCancelar.disabled = false;
+
+            const mensagem =
+              erro && erro.message
+                ? erro.message
+                : String(erro);
+
+            alert("Erro durante o envio:\n\n" + mensagem);
+          })
+          .enviarConvitesComAba(nomeAba);
+      }
+    </script>
+  </body>
+</html>
